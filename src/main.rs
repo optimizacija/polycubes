@@ -4,8 +4,11 @@
 
 // cc - cube cluster
 
+use std::fmt::{Formatter, Display, self};
 use std::hash::Hash;
 use std::collections::HashSet;
+
+use log::{debug, info};
 
 static mut WIDTH: isize = 3;
 static mut HEIGHT: isize = 3;
@@ -88,7 +91,7 @@ impl Bitfield3D {
     }
     
     fn index_unchecked(&self, x: isize, y: isize, z: isize) -> usize {
-        ((x * unsafe { HEIGHT } + y) * unsafe { DEPTH } + z) as usize
+        ((x * height()  + y) * depth() + z) as usize
     }
 
     
@@ -212,37 +215,61 @@ impl Bitfield3D {
     }
 
     pub fn generate(&self, lookup: &mut HashSet<Bitfield3D>) -> Vec<Bitfield3D> {
-        let mut next = self.grow();
+        let mut next = self.clone();
+        debug!("self\n{}", self);
         self.touching_unset_bits()
             .filter_map(|(x, y, z)| {
-                let xx = x + 1;
-                let yy = y + 1;
-                let zz = z + 1;
-                next.set_unchecked(xx, yy, zz, true);
+                debug!("touching bit: ({}, {}, {})\n", x, y, z);
+                next.set_unchecked(x, y, z, true);
 
                 // Use a scope to limit borrowing duration of self for cloning
                 let result = {
                     let canonical = next.create_canonical();
                     if !lookup.contains(&canonical) {
+                        debug!("canonical\n{}", canonical);
                          // TODO: 2 unnecessary clones, make lookup a hash of strings
                         lookup.insert(canonical.clone());
-                        Some(canonical.clone())
+                        Some(canonical.grow())
                     } else {
                         None
                     }
                 };
 
                 // Reset the bit to its original state
-                next.set_unchecked(xx, yy, zz, false);
+                next.set_unchecked(x, y, z, false);
                 
                 result
             })
             .collect()
     }
-    
+}
+
+impl Display for Bitfield3D {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "ˇˇˇ\n")?;
+        for z in 0..depth() {
+            if z != 0 {
+                write!(f, "---\n")?;
+            }
+            for y in 0..height() {
+                for x in 0..width() {
+                    let bit = if self.get_unchecked(x as isize, y as isize, z as isize) {
+                        '1'
+                    } else {
+                        '0'
+                    };
+                    write!(f, "{}", bit)?;
+                }
+                write!(f, "\n")?;
+            }
+        }
+        write!(f, "^^^\n")
+    }
 }
 
 fn main() {
+    env_logger::init();
+    
     let mut curr_cc: Vec<Bitfield3D> = vec![];
     let mut next_cc: Vec<Bitfield3D> = vec![];
     let mut lookup: HashSet<Bitfield3D> = HashSet::new();
@@ -255,9 +282,8 @@ fn main() {
     });
     
     for i in 1.. {
-        println!("{}: {}", i, curr_cc.len());
-        println!("{:?}", curr_cc);
-        if i == 2{
+        info!("{}: {}", i, curr_cc.len());
+        if i == 3{
             break;
         }
         
