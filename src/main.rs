@@ -248,10 +248,18 @@ fn main() {
     let mut lookup: HashSet<Bitfield3D> = HashSet::new();
     
     // on first iteration, there is a single block
-    curr_cc.push(Bitfield3D{ data: vec![false, false, false, false, true, false, false, false, false] });
+    curr_cc.push({
+        let mut first = Bitfield3D::new();
+        first.set_unchecked(1,1,1, true);
+        first
+    });
     
     for i in 1.. {
         println!("{}: {}", i, curr_cc.len());
+        println!("{:?}", curr_cc);
+        if i == 2{
+            break;
+        }
         
         for cc in curr_cc.iter() {
             next_cc.extend(cc.generate(&mut lookup))
@@ -262,6 +270,4 @@ fn main() {
         lookup.clear();
         step_dimensions();
     }
-
-    println!("Hello, world!");
 }
