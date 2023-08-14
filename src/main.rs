@@ -204,7 +204,8 @@ impl Bitfield3D {
                         let new_y = y + 1;
                         let new_z = z + 1;
 
-                        let index = self.index_unchecked(new_x, new_y, new_z);
+                        
+                        let index = ((new_x * new_height  + new_y) * new_depth + new_z) as usize;
                         new_data[index] = true;
                     }
                 }
@@ -216,9 +217,9 @@ impl Bitfield3D {
 
     pub fn generate(&self, lookup: &mut HashSet<Bitfield3D>) -> Vec<Bitfield3D> {
         let mut next = self.clone();
-        debug!("self\n{}", self);
         self.touching_unset_bits()
             .filter_map(|(x, y, z)| {
+                // debug!("self\n{}", self);
                 debug!("touching bit: ({}, {}, {})\n", x, y, z);
                 next.set_unchecked(x, y, z, true);
 
@@ -283,6 +284,9 @@ fn main() {
     
     for i in 1.. {
         info!("{}: {}", i, curr_cc.len());
+        for b in curr_cc.iter() {
+            debug!("curr_cc\n{}", b);
+        }
         if i == 3{
             break;
         }
