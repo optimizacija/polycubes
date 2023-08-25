@@ -133,39 +133,23 @@ impl Bitfield3D {
         result
     }
     
-    fn rotations(&self) -> impl Iterator<Item = Bitfield3D> + '_ {
-        (0..4).flat_map(move |x| {
-            (0..4).flat_map(move |y| {
-                (0..4).map(move |z| {
-                    self.clone()
-                        .rotate_times_x(x)
-                        .rotate_times_y(y)
-                        .rotate_times_z(z)
-                })
-            })
-        })
-    }
-
-    fn rotate_times_x(&self, times: usize) -> Bitfield3D {
-        (0..times).fold(self.clone(), |acc, _| acc.rotate_x())
-    }
-
-    fn rotate_times_y(&self, times: usize) -> Bitfield3D {
-        (0..times).fold(self.clone(), |acc, _| acc.rotate_y())
-    }
-
-    fn rotate_times_z(&self, times: usize) -> Bitfield3D {
-        (0..times).fold(self.clone(), |acc, _| acc.rotate_z())
-    }
-    
     fn create_canonical(&self) -> Bitfield3D {
-        self.rotations().fold(self.clone(), |acc, rotation| {
-            if rotation < acc { 
-                rotation 
-            } else { 
-                acc 
+        let mut result = self.clone();
+        let mut rotator = self.clone();
+        for _x in 0..4 {
+            for _y in 0..4 {
+                for _z in 0..4 {
+                    if rotator < result {
+                        result = rotator.clone();
+                    }
+                    rotator = rotator.rotate_z();
+                }
+                rotator = rotator.rotate_y();
             }
-        })
+            rotator = rotator.rotate_x();
+        }
+        
+        result
     }
     
     fn grow_to_fit(&self, x: isize, y: isize, z: isize) -> Bitfield3D {
@@ -240,7 +224,7 @@ impl Bitfield3D {
         }
     }
 
-    pub fn generate<'a>(&'a self, new_polycubes: &'a mut HashSet<Bitfield3D>) {
+    pub fn generate(&self, new_polycubes: &mut HashSet<Bitfield3D>) {
         for (mut x, mut y, mut z) in self.touching_unset_bits() {
             let mut next = {
                 if !self.is_inside(x, y, z) {
@@ -255,6 +239,7 @@ impl Bitfield3D {
                     if z < 0 {
                         z = 0;
                     }
+                    
                     result
                 } else {
                     self.clone()
