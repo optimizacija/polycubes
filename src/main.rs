@@ -6,7 +6,7 @@
 
 use std::fmt::{Formatter, Display, self};
 use std::hash::Hash;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::time::Instant;
 
 use log::{debug, info};
@@ -39,54 +39,72 @@ impl Bitfield3D {
     }
 
     fn touching_unset_bits(&self) -> impl Iterator<Item = (isize, isize, isize)> + '_ {
-        let (x, y, z) = self.find_first_set_bit_unchecked();
-        // use flood fill approach to find all set bits and from those set bits find all of its
-        // neighbors that are either unset of out of bounds
-        let mut visited = HashSet::new();
-        let mut queue = vec![(x, y, z)];
+        enum State {
+            Explore(isize, isize, isize),
+            Yield(isize, isize, isize),
+        }
         
-        // TODO: WIP
-        visited.insert((x, y, z));
-        std::iter::from_fn(move || {
-            while let Some((x, y, z)) = queue.pop() {
-                let neighbors = [
-                    (x - 1, y, z),
-                    (x + 1, y, z),
-                    (x, y - 1, z),
-                    (x, y + 1, z),
-                    (x, y, z - 1),
-                    (x, y, z + 1),
-                ];
+        struct MyIterator<'a> {
+            states: VecDeque<State>,
+            visited: HashSet<(isize, isize, isize)>,
+            bitfield: &'a Bitfield3D,
+        }
+
+        impl<'a> MyIterator<'a> {
+            pub fn new(initial: (isize, isize, isize), bitfield: &'a Bitfield3D) -> Self {
+                let mut visited = HashSet::new();
+                visited.insert(initial);
                 
-                for &(nx, ny, nz) in neighbors.iter() {
-                    if !self.is_inside(nx, ny, nz) || !self.get_unchecked(nx, ny, nz) {
-                        debug!("neighbor {:?} is unset or out of bounds", (nx, ny, nz));
-                        return Some((nx, ny, nz));
-                    } else if !visited.contains(&(nx, ny, nz)) {
-                        visited.insert((nx, ny, nz));
-                        queue.push((nx, ny, nz));
-                    }
+                let mut states = VecDeque::new();
+                states.push_back(State::Explore(initial.0, initial.1, initial.2));
+                
+                Self {
+                    states,
+                    visited,
+                    bitfield,
                 }
             }
-            None
-        })
+        }
+        
+
+        impl<'a> Iterator for MyIterator<'a> {
+            type Item = (isize, isize, isize);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                while let Some(state) = self.states.pop_front() {
+                    match state {
+                        State::Explore(x, y, z) => {
+                            let neighbors = [
+                                (x - 1, y, z),
+                                (x + 1, y, z),
+                                (x, y - 1, z),
+                                (x, y + 1, z),
+                                (x, y, z - 1),
+                                (x, y, z + 1),
+                            ];
+
+                            for &(nx, ny, nz) in neighbors.iter() {
+                                if !self.bitfield.is_inside(nx, ny, nz) || !self.bitfield.get_unchecked(nx, ny, nz) {
+                                    self.states.push_back(State::Yield(nx, ny, nz));
+                                } else if !self.visited.contains(&(nx, ny, nz)) {
+                                    self.visited.insert((nx, ny, nz));
+                                    self.states.push_back(State::Explore(nx, ny, nz));
+                                }
+                            }
+                        }
+                        State::Yield(x, y, z) => {
+                            return Some((x, y, z));
+                        }
+                    }
+                }
+                None
+            }
+        }
+        
+        let (x, y, z) = self.find_first_set_bit_unchecked();
+        MyIterator::new((x, y, z), &self)
     }
             
-    fn has_set_neighbor(&self, x: isize, y: isize, z: isize) -> bool {
-        let neighbors = [
-            (x - 1, y, z),
-            (x + 1, y, z),
-            (x, y - 1, z),
-            (x, y + 1, z),
-            (x, y, z - 1),
-            (x, y, z + 1),
-        ];
-
-        neighbors.iter().any(|&(nx, ny, nz)| {
-            self.is_inside(nx, ny, nz) && self.get_unchecked(nx, ny, nz)
-        })
-    }
-    
     fn is_inside(&self, x: isize, y: isize, z: isize) -> bool {
         x >= 0 && x < self.width && y >= 0 && y < self.height && z >= 0 && z < self.depth
     }
@@ -250,7 +268,7 @@ impl Bitfield3D {
             }
         }
         
-        debug!("len: {}, width: {}, height: {}, depth: {}", new_data.len(), new_width, new_height, new_depth);
+        // debug!("len: {}, width: {}, height: {}, depth: {}", new_data.len(), new_width, new_height, new_depth);
 
         Bitfield3D { 
             data: new_data,
@@ -263,56 +281,67 @@ impl Bitfield3D {
     pub fn generate(&self, lookup: &mut HashSet<Bitfield3D>) -> Vec<Bitfield3D> {
         self.touching_unset_bits()
             .filter_map(|(mut x, mut y, mut z)| {
-                let mut next = self.clone();
-                debug!("touching bit: ({}, {}, {})\n", x, y, z);
-                if !next.is_inside(x, y, z) {
-                    next = next.grow_to_fit(x, y, z);
-                    if x < 0 {
-                        x = 0;
-                    }
-                    if y < 0 {
-                        y = 0;
-                    }
-                    if z < 0 {
-                        z = 0;
-                    }
-                }
-                next.set_unchecked(x, y, z, true);
-                debug!("next\n{}", next);
-
-                // Use a scope to limit borrowing duration of self for cloning
-                let result = {
-                    let canonical = next.create_canonical();
-                    if !lookup.contains(&canonical) {
-                        debug!("canonical\n{}", canonical);
-                         // TODO: 2 unnecessary clones, make lookup a hash of strings
-                        lookup.insert(canonical.clone());
-                        Some(canonical.clone())
+                let mut next = {
+                    if !self.is_inside(x, y, z) {
+                        let result = self.grow_to_fit(x, y, z);
+                        
+                        if x < 0 {
+                            x = 0;
+                        }
+                        if y < 0 {
+                            y = 0;
+                        }
+                        if z < 0 {
+                            z = 0;
+                        }
+                        result
                     } else {
-                        None
+                        self.clone()
                     }
                 };
+                next.set_unchecked(x, y, z, true);
 
-                // Reset the bit to its original state
-                next.set_unchecked(x, y, z, false);
-                
-                result
+                let canonical = next.create_canonical();
+                if !lookup.contains(&canonical) {
+                    // TODO: 2 unnecessary clones, make lookup a hash of strings
+                    lookup.insert(canonical.clone());
+                    Some(canonical.clone())
+                } else {
+                    None
+                }
             })
             .collect()
     }
 
     fn find_first_set_bit_unchecked(&self) -> (isize, isize, isize) {
-        let first = self.data.iter().position(|&x| x).unwrap();
+        // basic for loop
+        /*
+        for x in 0..self.width {
+            for y in 0..self.height {
+                for z in 0..self.depth {
+                    if self.get_unchecked(x, y, z) {
+                        return (x, y, z)
+                    }
+                }
+            }
+        }
+        (0, 0, 0)
+        */
         
+        // index manipulation
+        let first = self.data.iter().position(|&x| x).unwrap();
+
         let h = self.height as usize;
         let d = self.depth as usize;
+
+        let x = first / (h * d);
+        let y = (first % (h * d)) / d;
+        let z = first % d;
+
         (
-            // width
-            (first / (h * d)) as isize,
-            // height
-            ((first % (h * d)) / d) as isize,
-            // depth
-            (first % (h * d)) as isize,
+            x as isize,
+            y as isize,
+            z as isize,
         )
     }
 }
@@ -358,12 +387,11 @@ fn main() {
         let start = Instant::now();
         
         info!("{}: {}", i, curr_cc.len());
+        /*
         for b in curr_cc.iter() {
             debug!("curr_cc\n{}", b);
         }
-        if i == 3 {
-            break;
-        }
+        */
         
         for cc in curr_cc.iter() {
             next_cc.extend(cc.generate(&mut lookup))
