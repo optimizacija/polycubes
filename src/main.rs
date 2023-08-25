@@ -1,9 +1,3 @@
-// rotation invariance
-// hashmap
-//
-
-// cc - cube cluster
-
 use std::fmt::{Formatter, Display, self};
 use std::hash::Hash;
 use std::collections::HashSet;
@@ -305,11 +299,11 @@ impl Display for Bitfield3D {
 fn main() {
     env_logger::init();
     
-    let mut curr_cc: HashSet<Bitfield3D> = HashSet::new();
+    let mut polycubes: HashSet<Bitfield3D> = HashSet::new();
     let mut lookup: HashSet<Bitfield3D> = HashSet::new();
     
     // on first iteration, there is a single block
-    curr_cc.insert({
+    polycubes.insert({
         let mut first = Bitfield3D::new(1,1,1);
         first.set_unchecked(0,0,0, true);
         first
@@ -318,16 +312,16 @@ fn main() {
     for i in 1.. {
         let start = Instant::now();
         
-        info!("{}: {}", i, curr_cc.len());
-        for b in curr_cc.iter() {
-            debug!("curr_cc\n{}", b);
+        info!("{}: {}", i, polycubes.len());
+        for b in polycubes.iter() {
+            debug!("polycube\n{}", b);
         }
         
-        for cc in curr_cc.iter() {
+        for cc in polycubes.iter() {
             cc.generate(&mut lookup)
         }
         
-        std::mem::swap(&mut curr_cc, &mut lookup);
+        std::mem::swap(&mut polycubes, &mut lookup);
         lookup.clear();
         
         let duration = start.elapsed();
