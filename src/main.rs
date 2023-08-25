@@ -11,12 +11,18 @@ use std::time::Instant;
 
 use log::{debug, info};
 
-#[derive(Clone, Hash, PartialEq, PartialOrd, Ord, Eq, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct Bitfield3D {
     data: Vec<bool>,
     width: isize,
     height: isize,
     depth: isize,
+}
+
+impl Hash for Bitfield3D {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.data.hash(state);
+    }
 }
 
 impl Bitfield3D {
@@ -284,10 +290,10 @@ impl Bitfield3D {
 
 impl Display for Bitfield3D {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "ˇˇˇ\n")?;
+        write!(f, "{}\n", std::iter::repeat('ˇ').take(self.width as usize).collect::<String>())?;
         for z in 0..self.depth {
             if z != 0 {
-                write!(f, "---\n")?;
+                write!(f, "{}\n", std::iter::repeat('-').take(self.width as usize).collect::<String>())?;
             }
             for y in 0..self.height {
                 for x in 0..self.width {
@@ -301,7 +307,7 @@ impl Display for Bitfield3D {
                 write!(f, "\n")?;
             }
         }
-        write!(f, "^^^\n")
+        write!(f, "{}\n", std::iter::repeat('^').take(self.width as usize).collect::<String>())
     }
 }
 
