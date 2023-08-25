@@ -240,35 +240,31 @@ impl Bitfield3D {
         }
     }
 
-    pub fn generate<'a>(&'a self, lookup: &'a mut HashSet<Bitfield3D>) {
-        self.touching_unset_bits()
-            .for_each(|(mut x, mut y, mut z)| {
-                let mut next = {
-                    if !self.is_inside(x, y, z) {
-                        let result = self.grow_to_fit(x, y, z);
-                        
-                        if x < 0 {
-                            x = 0;
-                        }
-                        if y < 0 {
-                            y = 0;
-                        }
-                        if z < 0 {
-                            z = 0;
-                        }
-                        result
-                    } else {
-                        self.clone()
+    pub fn generate<'a>(&'a self, new_polycubes: &'a mut HashSet<Bitfield3D>) {
+        for (mut x, mut y, mut z) in self.touching_unset_bits() {
+            let mut next = {
+                if !self.is_inside(x, y, z) {
+                    let result = self.grow_to_fit(x, y, z);
+                    
+                    if x < 0 {
+                        x = 0;
                     }
-                };
-                next.set_unchecked(x, y, z, true);
-
-                let canonical = next.create_canonical();
-                if !lookup.contains(&canonical) {
-                    // TODO: 2 unnecessary clones, make lookup a hash of strings
-                    lookup.insert(canonical.clone());
+                    if y < 0 {
+                        y = 0;
+                    }
+                    if z < 0 {
+                        z = 0;
+                    }
+                    result
+                } else {
+                    self.clone()
                 }
-            })
+            };
+            next.set_unchecked(x, y, z, true);
+
+            let canonical = next.create_canonical();
+            new_polycubes.insert(canonical);
+        }
     }
 
 }
@@ -299,11 +295,11 @@ impl Display for Bitfield3D {
 fn main() {
     env_logger::init();
     
-    let mut polycubes: HashSet<Bitfield3D> = HashSet::new();
-    let mut lookup: HashSet<Bitfield3D> = HashSet::new();
+    let mut curr_polycubes: HashSet<Bitfield3D> = HashSet::new();
+    let mut new_polycubes: HashSet<Bitfield3D> = HashSet::new();
     
     // on first iteration, there is a single block
-    polycubes.insert({
+    curr_polycubes.insert({
         let mut first = Bitfield3D::new(1,1,1);
         first.set_unchecked(0,0,0, true);
         first
@@ -312,17 +308,17 @@ fn main() {
     for i in 1.. {
         let start = Instant::now();
         
-        info!("{}: {}", i, polycubes.len());
-        for b in polycubes.iter() {
+        info!("{}: {}", i, curr_polycubes.len());
+        for b in curr_polycubes.iter() {
             debug!("polycube\n{}", b);
         }
         
-        for cc in polycubes.iter() {
-            cc.generate(&mut lookup)
+        for polycube in curr_polycubes.iter() {
+            polycube.generate(&mut new_polycubes)
         }
         
-        std::mem::swap(&mut polycubes, &mut lookup);
-        lookup.clear();
+        std::mem::swap(&mut curr_polycubes, &mut new_polycubes);
+        new_polycubes.clear();
         
         let duration = start.elapsed();
         info!("{}.{:03} seconds", duration.as_secs(), duration.subsec_nanos() / 1_000_000);
