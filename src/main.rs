@@ -39,16 +39,36 @@ impl Bitfield3D {
     }
 
     fn touching_unset_bits(&self) -> impl Iterator<Item = (isize, isize, isize)> + '_ {
-        (-1..=self.width).flat_map(move |x| {
-            (-1..=self.height).flat_map(move |y| {
-                (-1..=self.depth).filter_map(move |z| {
-                    if (!self.is_inside(x, y, z) || !self.get_unchecked(x, y, z)) && self.has_set_neighbor(x, y, z) {
-                        Some((x, y, z))
-                    } else {
-                        None
+        let (x, y, z) = self.find_first_set_bit_unchecked();
+        // use flood fill approach to find all set bits and from those set bits find all of its
+        // neighbors that are either unset of out of bounds
+        let mut visited = HashSet::new();
+        let mut queue = vec![(x, y, z)];
+        
+        // TODO: WIP
+        visited.insert((x, y, z));
+        std::iter::from_fn(move || {
+            while let Some((x, y, z)) = queue.pop() {
+                let neighbors = [
+                    (x - 1, y, z),
+                    (x + 1, y, z),
+                    (x, y - 1, z),
+                    (x, y + 1, z),
+                    (x, y, z - 1),
+                    (x, y, z + 1),
+                ];
+                
+                for &(nx, ny, nz) in neighbors.iter() {
+                    if !self.is_inside(nx, ny, nz) || !self.get_unchecked(nx, ny, nz) {
+                        debug!("neighbor {:?} is unset or out of bounds", (nx, ny, nz));
+                        return Some((nx, ny, nz));
+                    } else if !visited.contains(&(nx, ny, nz)) {
+                        visited.insert((nx, ny, nz));
+                        queue.push((nx, ny, nz));
                     }
-                })
-            })
+                }
+            }
+            None
         })
     }
             
@@ -280,6 +300,21 @@ impl Bitfield3D {
             })
             .collect()
     }
+
+    fn find_first_set_bit_unchecked(&self) -> (isize, isize, isize) {
+        let first = self.data.iter().position(|&x| x).unwrap();
+        
+        let h = self.height as usize;
+        let d = self.depth as usize;
+        (
+            // width
+            (first / (h * d)) as isize,
+            // height
+            ((first % (h * d)) / d) as isize,
+            // depth
+            (first % (h * d)) as isize,
+        )
+    }
 }
 
 impl Display for Bitfield3D {
@@ -325,6 +360,9 @@ fn main() {
         info!("{}: {}", i, curr_cc.len());
         for b in curr_cc.iter() {
             debug!("curr_cc\n{}", b);
+        }
+        if i == 3 {
+            break;
         }
         
         for cc in curr_cc.iter() {
