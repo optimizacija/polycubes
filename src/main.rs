@@ -81,25 +81,29 @@ impl Bitfield3D {
         ((x * self.height  + y) * self.depth + z) as usize
     }
 
-    
-    fn rotate_x(&self) -> Bitfield3D {
-        let mut result = Bitfield3D::new(self.width, self.depth, self.height);
+    // TODO: WIP
+    pub fn rotate_x(&mut self) {
+        let width = self.width;
+        let height = self.height;
+        let depth = self.depth;
 
-        for x in 0..self.width {
-            for y in 0..self.height {
-                for z in 0..self.depth {
-                    if self.get_unchecked(x, y, z) {
-                        let new_y = self.depth - 1 - z;
-                        let new_z = y;
-                        let index = result.index_unchecked(x, new_y, new_z);
-                        result.data[index] = true;
+        for x in 0..width {
+            for y in 0..(depth / 2) {
+                for z in 0..height {
+                    let index1 = (x * height + z) * depth + y;
+                    let index2 = (x * depth + (depth - y - 1)) * height + z;
+
+                    if index1 != index2 {
+                        self.data.swap(index1 as usize, index2 as usize);
                     }
                 }
             }
         }
 
-        result
+        // Swap the height and depth
+        std::mem::swap(&mut self.height, &mut self.depth);
     }
+
 
     fn rotate_y(&self) -> Bitfield3D {
         let mut result = Bitfield3D::new(self.depth, self.height, self.width);
@@ -153,7 +157,13 @@ impl Bitfield3D {
     }
 
     fn rotate_times_x(&self, times: usize) -> Bitfield3D {
-        (0..times).fold(self.clone(), |acc, _| acc.rotate_x())
+        let mut result = self.clone();
+
+        for _ in 0..times {
+            result.rotate_x();
+        }
+
+        result
     }
 
     fn rotate_times_y(&self, times: usize) -> Bitfield3D {
