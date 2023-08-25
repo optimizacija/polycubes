@@ -136,7 +136,7 @@ impl Bitfield3D {
     fn create_canonical(&self) -> Bitfield3D {
         let mut result = self.clone();
         let mut rotator = self.clone();
-        for _x in 0..4 {
+        for _x in 0..2 {
             for _y in 0..4 {
                 for _z in 0..4 {
                     if rotator < result {
