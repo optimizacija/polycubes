@@ -236,7 +236,7 @@ impl Bitfield3D {
             }
         }
         
-        debug!("len: {}, width: {}, height: {}, depth: {}", new_data.len(), new_width, new_height, new_depth);
+        // debug!("len: {}, width: {}, height: {}, depth: {}", new_data.len(), new_width, new_height, new_depth);
 
         Bitfield3D { 
             data: new_data,
@@ -249,43 +249,38 @@ impl Bitfield3D {
     pub fn generate(&self, lookup: &mut HashSet<Bitfield3D>) -> Vec<Bitfield3D> {
         self.touching_unset_bits()
             .filter_map(|(mut x, mut y, mut z)| {
-                let mut next = self.clone();
-                debug!("touching bit: ({}, {}, {})\n", x, y, z);
-                if !next.is_inside(x, y, z) {
-                    next = next.grow_to_fit(x, y, z);
-                    if x < 0 {
-                        x = 0;
-                    }
-                    if y < 0 {
-                        y = 0;
-                    }
-                    if z < 0 {
-                        z = 0;
-                    }
-                }
-                next.set_unchecked(x, y, z, true);
-                debug!("next\n{}", next);
-
-                // Use a scope to limit borrowing duration of self for cloning
-                let result = {
-                    let canonical = next.create_canonical();
-                    if !lookup.contains(&canonical) {
-                        debug!("canonical\n{}", canonical);
-                         // TODO: 2 unnecessary clones, make lookup a hash of strings
-                        lookup.insert(canonical.clone());
-                        Some(canonical.clone())
+                let mut next = {
+                    if !self.is_inside(x, y, z) {
+                        let result = self.grow_to_fit(x, y, z);
+                        
+                        if x < 0 {
+                            x = 0;
+                        }
+                        if y < 0 {
+                            y = 0;
+                        }
+                        if z < 0 {
+                            z = 0;
+                        }
+                        result
                     } else {
-                        None
+                        self.clone()
                     }
                 };
+                next.set_unchecked(x, y, z, true);
 
-                // Reset the bit to its original state
-                next.set_unchecked(x, y, z, false);
-                
-                result
+                let canonical = next.create_canonical();
+                if !lookup.contains(&canonical) {
+                    // TODO: 2 unnecessary clones, make lookup a hash of strings
+                    lookup.insert(canonical.clone());
+                    Some(canonical.clone())
+                } else {
+                    None
+                }
             })
             .collect()
     }
+
 }
 
 impl Display for Bitfield3D {
