@@ -246,7 +246,7 @@ impl Bitfield3D {
         }
     }
 
-    pub fn generate(&self, lookup: &mut HashSet<Bitfield3D>) -> Vec<Bitfield3D> {
+    pub fn generate<'a>(&'a self, lookup: &'a mut HashSet<Bitfield3D>) -> impl Iterator<Item = Bitfield3D> + 'a {
         self.touching_unset_bits()
             .filter_map(|(mut x, mut y, mut z)| {
                 let mut next = {
@@ -278,7 +278,6 @@ impl Bitfield3D {
                     None
                 }
             })
-            .collect()
     }
 
 }
