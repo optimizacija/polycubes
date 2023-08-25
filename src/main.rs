@@ -246,9 +246,9 @@ impl Bitfield3D {
         }
     }
 
-    pub fn generate<'a>(&'a self, lookup: &'a mut HashSet<Bitfield3D>) -> impl Iterator<Item = Bitfield3D> + 'a {
+    pub fn generate<'a>(&'a self, lookup: &'a mut HashSet<Bitfield3D>) {
         self.touching_unset_bits()
-            .filter_map(|(mut x, mut y, mut z)| {
+            .for_each(|(mut x, mut y, mut z)| {
                 let mut next = {
                     if !self.is_inside(x, y, z) {
                         let result = self.grow_to_fit(x, y, z);
@@ -273,9 +273,6 @@ impl Bitfield3D {
                 if !lookup.contains(&canonical) {
                     // TODO: 2 unnecessary clones, make lookup a hash of strings
                     lookup.insert(canonical.clone());
-                    Some(canonical.clone())
-                } else {
-                    None
                 }
             })
     }
@@ -308,12 +305,11 @@ impl Display for Bitfield3D {
 fn main() {
     env_logger::init();
     
-    let mut curr_cc: Vec<Bitfield3D> = vec![];
-    let mut next_cc: Vec<Bitfield3D> = vec![];
+    let mut curr_cc: HashSet<Bitfield3D> = HashSet::new();
     let mut lookup: HashSet<Bitfield3D> = HashSet::new();
     
     // on first iteration, there is a single block
-    curr_cc.push({
+    curr_cc.insert({
         let mut first = Bitfield3D::new(1,1,1);
         first.set_unchecked(0,0,0, true);
         first
@@ -328,11 +324,10 @@ fn main() {
         }
         
         for cc in curr_cc.iter() {
-            next_cc.extend(cc.generate(&mut lookup))
+            cc.generate(&mut lookup)
         }
         
-        std::mem::swap(&mut curr_cc, &mut next_cc);
-        next_cc.clear();
+        std::mem::swap(&mut curr_cc, &mut lookup);
         lookup.clear();
         
         let duration = start.elapsed();
