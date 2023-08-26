@@ -128,9 +128,9 @@ impl Bitfield3D {
     }
     
     fn create_canonical(&self) -> Bitfield3D {
-        let mut result = self.clone();
-        let mut rotator = self.clone();
-        let mut buffer = self.clone();
+        let mut result = Box::new(self.clone());
+        let mut rotator = Box::new(self.clone());
+        let mut buffer = Box::new(self.clone());
         // TODO: this makes 32 rotations, but only 24 are needed
         for _x in 0..2 {
             for _y in 0..4 {
@@ -148,7 +148,7 @@ impl Bitfield3D {
             std::mem::swap(&mut rotator, &mut buffer);
         }
         
-        result
+        *result
     }
     
     fn grow_to_fit(&self, x: isize, y: isize, z: isize) -> Bitfield3D {
