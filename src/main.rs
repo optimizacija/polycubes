@@ -319,6 +319,6 @@ fn main() {
         new_polycubes.clear();
         
         let duration = start.elapsed();
-        info!("{}.{:03} seconds", duration.as_secs(), duration.subsec_nanos() / 1_000_000);
+        info!("nano: {} | human: {}.{:03} seconds", duration.as_nanos(), duration.as_secs(), duration.subsec_nanos() / 1_000_000);
     }
 }
