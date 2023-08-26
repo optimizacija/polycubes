@@ -221,8 +221,6 @@ impl Bitfield3D {
                         // takes offsets into account
                         let index = (((x + offset_x) * new_height  + (y + offset_y)) * new_depth + (z + offset_z)) as usize;
                         
-                        // doesn't take into account offsets
-                        // let index = ((x * new_height  + y) * new_depth + z) as usize;
                         new_data[index] = true;
                     }
                 }
