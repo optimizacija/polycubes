@@ -136,6 +136,7 @@ impl Bitfield3D {
     fn create_canonical(&self) -> Bitfield3D {
         let mut result = self.clone();
         let mut rotator = self.clone();
+        // TODO: this makes 32 rotations, but only 24 are needed
         for _x in 0..2 {
             for _y in 0..4 {
                 for _z in 0..4 {
