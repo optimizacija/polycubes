@@ -3,8 +3,6 @@ use std::hash::Hash;
 use std::collections::HashSet;
 use std::time::Instant;
 
-use log::{debug, info};
-
 #[derive(Clone, PartialEq, PartialOrd, Ord, Eq, Debug)]
 pub struct Bitfield3D {
     data: Vec<bool>,
@@ -291,8 +289,6 @@ impl Display for Bitfield3D {
 }
 
 fn main() {
-    env_logger::init();
-    
     let mut curr_polycubes: HashSet<Bitfield3D> = HashSet::new();
     let mut new_polycubes: HashSet<Bitfield3D> = HashSet::new();
     
@@ -302,14 +298,10 @@ fn main() {
         first.set_unchecked(0,0,0, true);
         first
     });
+    println!("1: 1");
     
-    for i in 1.. {
+    for i in 2.. {
         let start = Instant::now();
-        
-        info!("{}: {}", i, curr_polycubes.len());
-        for b in curr_polycubes.iter() {
-            debug!("polycube\n{}", b);
-        }
         
         for polycube in curr_polycubes.iter() {
             polycube.generate(&mut new_polycubes)
@@ -319,6 +311,6 @@ fn main() {
         new_polycubes.clear();
         
         let duration = start.elapsed();
-        info!("nano: {} | human: {}.{:03} seconds", duration.as_nanos(), duration.as_secs(), duration.subsec_nanos() / 1_000_000);
+        println!("{}: {}, nano: {} | human: {}.{:03} seconds", i, curr_polycubes.len(), duration.as_nanos(), duration.as_secs(), duration.subsec_nanos() / 1_000_000);
     }
 }
