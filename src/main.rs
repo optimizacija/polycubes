@@ -127,29 +127,45 @@ impl Bitfield3D {
         }
     }
     
+
     fn create_canonical(&self) -> Bitfield3D {
-        let mut result = Box::new(self.clone());
-        let mut rotator = Box::new(self.clone());
-        let mut buffer = Box::new(self.clone());
+        let mut result = self.clone();
+        let mut rotator = self.clone();
+        let mut buffer = self.clone();
+        
+        // Convert to raw pointers
+        let result_ptr = &mut result as *mut Bitfield3D;
+        let mut rotator_ptr = &mut rotator as *mut Bitfield3D;
+        let mut buffer_ptr = &mut buffer as *mut Bitfield3D;
+
         // TODO: this makes 32 rotations, but only 24 are needed
         for _x in 0..2 {
             for _y in 0..4 {
                 for _z in 0..4 {
-                    if rotator < result {
-                        result = rotator.clone();
+                    unsafe {
+                        if *rotator_ptr < *result_ptr {
+                            *result_ptr = (*rotator_ptr).clone();
+                        }
+                        (*rotator_ptr).rotate_z(&mut *buffer_ptr);
                     }
-                    rotator.rotate_z(&mut buffer);
-                    std::mem::swap(&mut rotator, &mut buffer);
+                    std::mem::swap(&mut rotator_ptr, &mut buffer_ptr);
                 }
-                rotator.rotate_y(&mut buffer);
-                std::mem::swap(&mut rotator, &mut buffer);
+                unsafe {
+                    (*rotator_ptr).rotate_y(&mut *buffer_ptr);
+                }
+                std::mem::swap(&mut rotator_ptr, &mut buffer_ptr);
             }
-            rotator.rotate_x(&mut buffer);
-            std::mem::swap(&mut rotator, &mut buffer);
+            unsafe {
+                (*rotator_ptr).rotate_x(&mut *buffer_ptr);
+            }
+            std::mem::swap(&mut rotator_ptr, &mut buffer_ptr);
         }
         
-        *result
+        unsafe {
+            (*result_ptr).clone()
+        }
     }
+
     
     fn grow_to_fit(&self, x: isize, y: isize, z: isize) -> Bitfield3D {
         // Increase the dimensions by 2 to account for padding on both sides
