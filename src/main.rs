@@ -76,66 +76,61 @@ impl Bitfield3D {
     }
 
     
-    fn rotate_x(&self) -> Bitfield3D {
-        let mut result = Bitfield3D::new(self.width, self.depth, self.height);
+    fn rotate_x(&self, buffer: &mut Bitfield3D) {
+        buffer.width = self.width;
+        buffer.height = self.depth;
+        buffer.depth = self.height;
 
         for x in 0..self.width {
             for y in 0..self.height {
                 for z in 0..self.depth {
-                    if self.get_unchecked(x, y, z) {
-                        let new_y = self.depth - 1 - z;
-                        let new_z = y;
-                        let index = result.index_unchecked(x, new_y, new_z);
-                        result.data[index] = true;
-                    }
+                    let new_y = self.depth - 1 - z;
+                    let new_z = y;
+                    let index = buffer.index_unchecked(x, new_y, new_z);
+                    buffer.data[index] = self.get_unchecked(x, y, z);
                 }
             }
         }
-
-        result
     }
 
-    fn rotate_y(&self) -> Bitfield3D {
-        let mut result = Bitfield3D::new(self.depth, self.height, self.width);
+    fn rotate_y(&self, buffer: &mut Bitfield3D) {
+        buffer.width = self.depth;
+        buffer.height = self.height;
+        buffer.depth = self.width;
 
         for x in 0..self.width {
             for y in 0..self.height {
                 for z in 0..self.depth {
-                    if self.get_unchecked(x, y, z) {
-                        let new_x = z;
-                        let new_z = self.width - 1 - x;
-                        let index = result.index_unchecked(new_x, y, new_z);
-                        result.data[index] = true;
-                    }
+                    let new_x = z;
+                    let new_z = self.width - 1 - x;
+                    let index = buffer.index_unchecked(new_x, y, new_z);
+                    buffer.data[index] = self.get_unchecked(x, y, z);
                 }
             }
         }
-
-        result
     }
 
-    fn rotate_z(&self) -> Bitfield3D {
-        let mut result = Bitfield3D::new(self.height, self.width, self.depth);
+    fn rotate_z(&self, buffer: &mut Bitfield3D) {
+        buffer.width = self.height;
+        buffer.height = self.width;
+        buffer.depth = self.depth;
 
         for x in 0..self.width {
             for y in 0..self.height {
                 for z in 0..self.depth {
-                    if self.get_unchecked(x, y, z) {
-                        let new_x = self.height - 1 - y;
-                        let new_y = x;
-                        let index = result.index_unchecked(new_x, new_y, z);
-                        result.data[index] = true;
-                    }
+                    let new_x = self.height - 1 - y;
+                    let new_y = x;
+                    let index = buffer.index_unchecked(new_x, new_y, z);
+                    buffer.data[index] = self.get_unchecked(x, y, z);
                 }
             }
         }
-
-        result
     }
     
     fn create_canonical(&self) -> Bitfield3D {
         let mut result = self.clone();
         let mut rotator = self.clone();
+        let mut buffer = self.clone();
         // TODO: this makes 32 rotations, but only 24 are needed
         for _x in 0..2 {
             for _y in 0..4 {
@@ -143,11 +138,14 @@ impl Bitfield3D {
                     if rotator < result {
                         result = rotator.clone();
                     }
-                    rotator = rotator.rotate_z();
+                    rotator.rotate_z(&mut buffer);
+                    std::mem::swap(&mut rotator, &mut buffer);
                 }
-                rotator = rotator.rotate_y();
+                rotator.rotate_y(&mut buffer);
+                std::mem::swap(&mut rotator, &mut buffer);
             }
-            rotator = rotator.rotate_x();
+            rotator.rotate_x(&mut buffer);
+            std::mem::swap(&mut rotator, &mut buffer);
         }
         
         result
